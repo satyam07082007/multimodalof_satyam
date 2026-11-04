@@ -1,0 +1,40 @@
+# Python cache and environment
+
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+.streamlit/secrets.toml
+.DS_Store__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# Environment secrets
+.env
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploaded and synthesized media
+media/uploads/*
+media/audio_responses/*
+!media/uploads/.gitkeep
+!media/audio_responses/.gitkeep
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Pytest and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
