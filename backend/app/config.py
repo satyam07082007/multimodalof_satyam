@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     
     # AI Engine
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_MODEL: str = "gemini-1.5-flash"
+    GEMINI_MODEL: str = "gemini-3.5-flash"
 
     # MySQL Configuration
     MYSQL_HOST: str = os.getenv("MYSQL_HOST", "localhost")

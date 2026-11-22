@@ -9,7 +9,7 @@ Haven AI is a modern, full-featured, general-purpose multimodal AI platform insp
 ## 🌐 Live Localhost Access Links
 
 When the servers are running:
-- 🌿 **Haven AI Web Studio (Streamlit)**: [http://localhost:8501](http://localhost:8501)
+- 🌿 **Haven AI Web Studio (Streamlit)**: [http://localhost:8502](http://localhost:8502)
 - ⚙️ **FastAPI Backend Root / Health**: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
 - 📖 **Interactive Swagger API Docs**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 - 📑 **FastAPI ReDoc**: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
@@ -20,8 +20,10 @@ When the servers are running:
 
 | Capability | Module | Description |
 | :--- | :--- | :--- |
+| **🧠 Smart Intent Router** | `modules/router.py` | Auto-detects user intent (Image Generation vs Image Search, Web Search, Code, Care, Documents). |
+| **🔍 Real Image Search** | `modules/image_search.py` | Searches and retrieves authentic web images (people, places, landmarks, products) with source provenance and direct gallery cards. |
+| **🎨 AI Image Generation** | `modules/image_generation.py` | Generates high-res AI images via Neural Diffusion / Pollinations with in-chat preview, regeneration, and download. |
 | **🤖 General Conversation** | `modules/chat_engine.py` | Multi-turn dialogues, structured markdown, LaTeX math, summaries, emails, language translation, context memory. |
-| **🎨 Image Generation** | `modules/image_generation.py` | **Generates real images** via Neural Diffusion / Pollinations / FLUX / Hugging Face SDXL with in-chat preview, regeneration, and download. |
 | **🖼️ Image Understanding** | `modules/image_understanding.py` | Object recognition, scene description, OCR text extraction, diagram interpretation, and code screenshot debugging. |
 | **🎙️ Voice Input (STT)** | `modules/speech_to_text.py` | Voice recording transcription via Whisper / Gemini Multimodal audio. |
 | **🔊 Natural Speech (TTS)** | `modules/text_to_speech.py` | Converts assistant text responses into soothing natural speech audio (`.mp3`) with player controls. |

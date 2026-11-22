@@ -1,6 +1,7 @@
 from modules.chat_engine import ChatEngine
 from modules.image_understanding import ImageUnderstandingService
 from modules.image_generation import ImageGenerationService
+from modules.image_search import ImageSearchModule
 from modules.speech_to_text import SpeechToTextService
 from modules.text_to_speech import TextToSpeechService
 from modules.audio_processing import AudioProcessingModule
@@ -10,11 +11,13 @@ from modules.coding_assistant import CodingAssistantModule
 from modules.data_analysis import DataAnalysisModule
 from modules.rag_engine import DynamicRAGEngine
 from modules.emotional_support import EmotionalSupportModule
+from modules.router import SmartRouter, RouteIntent
 
 __all__ = [
     "ChatEngine",
     "ImageUnderstandingService",
     "ImageGenerationService",
+    "ImageSearchModule",
     "SpeechToTextService",
     "TextToSpeechService",
     "AudioProcessingModule",
@@ -23,6 +26,7 @@ __all__ = [
     "CodingAssistantModule",
     "DataAnalysisModule",
     "DynamicRAGEngine",
-    "EmotionalSupportModule"
+    "EmotionalSupportModule",
+    "SmartRouter",
+    "RouteIntent"
 ]
-

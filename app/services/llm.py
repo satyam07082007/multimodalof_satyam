@@ -1,21 +1,23 @@
 import logging
 from typing import Optional, List, Dict, Any
-import google.generativeai as genai
+import google.genai as genai
 from app.config import settings
 
 logger = logging.getLogger("emotional_support.llm")
 
-# Configure Google Generative AI if key is provided
+# Configure Google GenAI Client if key is provided
+_genai_client = None
 if settings.LLM_API_KEY:
     try:
-        genai.configure(api_key=settings.LLM_API_KEY)
+        _genai_client = genai.Client(api_key=settings.LLM_API_KEY)
     except Exception as e:
         logger.warning("Could not initialize Google GenAI SDK: %s", e)
+
 
 class LLMService:
     """
     Modular LLM service with provider abstraction.
-    Supports Google Gemini, OpenAI-compatible APIs, and local therapeutic fallback responses.
+    Supports Google Gemini via google-genai SDK, and local therapeutic fallback responses.
     """
 
     SYSTEM_INSTRUCTION = (
@@ -27,6 +29,8 @@ class LLMService:
         "4. Strict Ethical Boundaries: Never diagnose mental health disorders, prescribe medication, or claim to be a human therapist.\n"
         "5. Manageable Next Steps: Keep responses concise and avoid overwhelming the user with long lists of chores."
     )
+
+    FALLBACK_MODELS = ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash"]
 
     @classmethod
     def generate_response(
@@ -40,35 +44,50 @@ class LLMService:
         """
         Generates empathetic response using configured LLM or fallback engine.
         """
-        # If API key is provided and provider is gemini, call Gemini
-        if settings.LLM_API_KEY and settings.LLM_PROVIDER.lower() == "gemini":
+        global _genai_client
+        if _genai_client is None and settings.LLM_API_KEY:
             try:
-                model = genai.GenerativeModel(settings.LLM_MODEL)
-                
+                _genai_client = genai.Client(api_key=settings.LLM_API_KEY)
+            except Exception as e:
+                logger.warning("Failed to initialize GenAI client on request: %s", e)
+
+        if _genai_client and settings.LLM_PROVIDER.lower() == "gemini":
+            try:
                 prompt_parts = [cls.SYSTEM_INSTRUCTION]
-                
+
                 if rag_context:
                     prompt_parts.append(rag_context)
-                    
+
                 if multimodal_context:
                     prompt_parts.append(f"### Multimodal Context (Audio/Visual/Document):\n{multimodal_context}\n")
-                    
+
                 if conversation_history:
                     history_str = "### Recent Conversation History:\n"
                     for h in conversation_history[-4:]:
                         role = "User" if h["role"] == "user" else "Assistant"
                         history_str += f"{role}: {h['content']}\n"
                     prompt_parts.append(history_str)
-                    
+
                 prompt_parts.append(f"User Detected Mood: {mood_tag}")
                 prompt_parts.append(f"User Current Message: {user_message}")
                 prompt_parts.append("Empathetic Assistant Response:")
-                
+
                 full_prompt = "\n\n".join(prompt_parts)
-                response = model.generate_content(full_prompt)
-                
-                if response and response.text:
-                    return response.text.strip()
+
+                primary_model = settings.LLM_MODEL or "gemini-3.5-flash"
+                candidate_models = [primary_model] + [m for m in cls.FALLBACK_MODELS if m != primary_model]
+
+                for m in candidate_models:
+                    try:
+                        response = _genai_client.models.generate_content(
+                            model=m,
+                            contents=full_prompt
+                        )
+                        if response and response.text:
+                            return response.text.strip()
+                    except Exception as model_err:
+                        logger.warning("LLM model %s failed: %s. Trying candidate...", m, model_err)
+
             except Exception as e:
                 logger.error("LLM Provider API call failed: %s. Using therapeutic fallback.", e)
 
@@ -130,4 +149,3 @@ class LLMService:
 
         closing = "\n\nTake things one step at a time. What would feel like the most gentle thing you could do for yourself right now?"
         return f"{opener}{techniques}{closing}"
-

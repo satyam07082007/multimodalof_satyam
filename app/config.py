@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     # LLM Settings
     LLM_PROVIDER: str = "gemini"
     LLM_API_KEY: str = ""
-    LLM_MODEL: str = "gemini-1.5-flash"
+    LLM_MODEL: str = "gemini-3.5-flash"
 
     # RAG Settings
     EMBEDDING_MODEL: str = "tfidf_semantic"
@@ -115,3 +115,11 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Ensure loaded settings are also available in os.environ for third-party libraries and modules
+if settings.LLM_API_KEY:
+    os.environ["LLM_API_KEY"] = settings.LLM_API_KEY
+    os.environ["GEMINI_API_KEY"] = settings.LLM_API_KEY
+if settings.LLM_MODEL:
+    os.environ["LLM_MODEL"] = settings.LLM_MODEL
+

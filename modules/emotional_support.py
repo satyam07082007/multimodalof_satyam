@@ -1,9 +1,8 @@
 import os
 import logging
 from typing import Dict, Any, List, Optional
-
-import google.generativeai as genai
-
+import google.genai as genai
+from app.config import settings
 from utils.security import check_crisis_intent, check_medical_boundary
 from app.services.rag import rag_service
 
@@ -13,8 +12,9 @@ logger = logging.getLogger("haven.emotional_support")
 class EmotionalSupportModule:
     """
     Dedicated Empathetic Emotional Support & Grounding Engine.
-    Uses Gemini AI for warm, personalized responses enriched with RAG-retrieved
+    Uses Google Gemini AI for warm, personalized responses enriched with RAG-retrieved
     evidence-based grounding content. Includes crisis escalation (988 Lifeline).
+    Supports both instance and classmethod invocation.
     """
 
     SYSTEM_PROMPT = (
@@ -33,33 +33,56 @@ class EmotionalSupportModule:
         "7. Closing: End with an open, curious question to invite continued sharing."
     )
 
+    FALLBACK_MODELS = ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash"]
+    _instance = None
+
     def __init__(self):
-        self.gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("LLM_API_KEY") or ""
-        self.model_name = os.getenv("LLM_MODEL", "gemini-1.5-flash")
+        self.gemini_key = (
+            getattr(settings, "LLM_API_KEY", "")
+            or os.getenv("GEMINI_API_KEY")
+            or os.getenv("LLM_API_KEY")
+            or ""
+        )
+        self.model_name = getattr(settings, "LLM_MODEL", "gemini-3.5-flash") or "gemini-3.5-flash"
+        self.client = None
 
         if self.gemini_key:
             try:
-                genai.configure(api_key=self.gemini_key)
+                self.client = genai.Client(api_key=self.gemini_key)
             except Exception as e:
                 logger.warning("Gemini config in EmotionalSupport: %s", e)
 
-    def _call_gemini(self, user_text: str, context_chunks: str = "") -> Optional[str]:
+    @classmethod
+    def _get_active_instance(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+    @classmethod
+    def _call_gemini(cls, user_text: str, context_chunks: str = "") -> Optional[str]:
         """Calls Gemini with the emotional support system prompt."""
-        if not self.gemini_key:
+        inst = cls._get_active_instance()
+        if not inst.client:
             return None
-        try:
-            model = genai.GenerativeModel(self.model_name)
-            parts = [self.SYSTEM_PROMPT]
-            if context_chunks:
-                parts.append(
-                    f"### Relevant Grounding Resources (from Haven Knowledge Base):\n{context_chunks}"
+        parts = [cls.SYSTEM_PROMPT]
+        if context_chunks:
+            parts.append(
+                f"### Relevant Grounding Resources (from Haven Knowledge Base):\n{context_chunks}"
+            )
+        parts.append(f"User shares: {user_text}\n\nHaven responds:")
+        full_prompt = "\n\n".join(parts)
+
+        candidate_models = [inst.model_name] + [m for m in cls.FALLBACK_MODELS if m != inst.model_name]
+        for m in candidate_models:
+            try:
+                res = inst.client.models.generate_content(
+                    model=m,
+                    contents=full_prompt
                 )
-            parts.append(f"User shares: {user_text}\n\nHaven responds:")
-            res = model.generate_content("\n\n".join(parts))
-            if res and res.text:
-                return res.text.strip()
-        except Exception as e:
-            logger.error("Gemini emotional support call failed: %s", e)
+                if res and res.text:
+                    return res.text.strip()
+            except Exception as e:
+                logger.warning("Model %s emotional support notice: %s", m, e)
         return None
 
     @classmethod
@@ -124,10 +147,12 @@ class EmotionalSupportModule:
         closing = "\n\nWhat feels like the kindest thing you can do for yourself in the next hour?"
         return f"{opener}{exercise}{closing}"
 
-    def process_emotional_input(self, user_text: str) -> Dict[str, Any]:
+    @classmethod
+    def process_emotional_input(cls, user_text: str) -> Dict[str, Any]:
         """
         Evaluates emotional input, checks safety guardrails, retrieves RAG context,
         and generates a warm Gemini-powered (or fallback) empathetic response.
+        Works both when called as `instance.process_emotional_input(...)` or `EmotionalSupportModule.process_emotional_input(...)`.
         """
         # 1. Critical Crisis & Self-Harm Safety Check — always runs first
         is_crisis, crisis_msg = check_crisis_intent(user_text)
@@ -154,11 +179,11 @@ class EmotionalSupportModule:
             )
 
         # 4. Detect mood tag
-        mood = self._detect_mood_tag(user_text)
+        mood = cls._detect_mood_tag(user_text)
 
         # 5. Generate empathetic response — Gemini AI first, fallback second
-        ai_response = self._call_gemini(user_text, context_chunks)
-        empathetic_reply = ai_response or self._fallback_care_response(user_text, mood, retrieved_guides)
+        ai_response = cls._call_gemini(user_text, context_chunks)
+        empathetic_reply = ai_response or cls._fallback_care_response(user_text, mood, retrieved_guides)
 
         # 6. Prepend medical disclaimer if triggered
         if is_med and med_disclaimer:

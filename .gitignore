@@ -24,8 +24,14 @@ env/
 # Uploaded and synthesized media
 media/uploads/*
 media/audio_responses/*
+media/generated_images/*
+media/*.png
+media/*.jpg
+media/*.jpeg
+media/*.webp
 !media/uploads/.gitkeep
 !media/audio_responses/.gitkeep
+!media/generated_images/.gitkeep
 
 # IDE and OS
 .vscode/

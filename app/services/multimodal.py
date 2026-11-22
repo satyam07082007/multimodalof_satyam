@@ -3,10 +3,11 @@ from pathlib import Path
 from typing import Optional
 from PIL import Image
 from pypdf import PdfReader
-import google.generativeai as genai
+import google.genai as genai
 from app.config import settings
 
 logger = logging.getLogger("emotional_support.multimodal")
+
 
 class MultimodalService:
     """
@@ -15,24 +16,37 @@ class MultimodalService:
     """
 
     @classmethod
+    def _get_client(cls):
+        api_key = getattr(settings, "LLM_API_KEY", "")
+        if api_key:
+            try:
+                return genai.Client(api_key=api_key)
+            except Exception as e:
+                logger.warning("Could not init GenAI client: %s", e)
+        return None
+
+    @classmethod
     def analyze_image(cls, image_path: Path) -> str:
         """
-        Interprets user-submitted image (drawing, journal note, emotion scene)
-        using vision-capable model or graceful perceptual fallback.
+        Interprets user-submitted image using vision model or graceful perceptual fallback.
         """
         if not image_path.exists():
             return ""
 
-        if settings.LLM_API_KEY and settings.LLM_PROVIDER.lower() == "gemini":
+        client = cls._get_client()
+        if client and settings.LLM_PROVIDER.lower() == "gemini":
             try:
-                model = genai.GenerativeModel(settings.LLM_MODEL)
                 pil_img = Image.open(image_path)
                 prompt = (
                     "You are an empathetic emotional support observer. Look at this image provided by a user "
                     "(which may be artwork, a journal entry, an emotion photo, or surroundings). "
                     "In 2-3 gentle sentences, describe the emotional mood, colors, and visual feeling conveyed."
                 )
-                response = model.generate_content([prompt, pil_img])
+                model_name = settings.LLM_MODEL or "gemini-3.5-flash"
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=[prompt, pil_img]
+                )
                 if response and response.text:
                     return response.text.strip()
             except Exception as e:
@@ -55,14 +69,18 @@ class MultimodalService:
         if not audio_path.exists():
             return ""
 
-        if settings.LLM_API_KEY and settings.LLM_PROVIDER.lower() == "gemini":
+        client = cls._get_client()
+        if client and settings.LLM_PROVIDER.lower() == "gemini":
             try:
-                uploaded_file = genai.upload_file(path=str(audio_path))
-                model = genai.GenerativeModel(settings.LLM_MODEL)
-                response = model.generate_content([
-                    "Please transcribe the spoken emotional message from this audio clip accurately.",
-                    uploaded_file
-                ])
+                uploaded_file = client.files.upload(file=str(audio_path))
+                model_name = settings.LLM_MODEL or "gemini-3.5-flash"
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=[
+                        "Please transcribe the spoken emotional message from this audio clip accurately.",
+                        uploaded_file
+                    ]
+                )
                 if response and response.text:
                     return response.text.strip()
             except Exception as e:
@@ -117,4 +135,3 @@ class MultimodalService:
         if any(w in lower for w in ["better", "hope", "thank you", "calmer", "relieved", "good", "grateful"]):
             return "hopeful"
         return "neutral"
-
